@@ -21,10 +21,17 @@ app.use("/api/v1/blog/*", async (c, next) => {
   //if the header is correct we can proceed
   //if not we tell the user 403
   const header = c.req.header("Authorization") || "";
+
+  if (!header) {
+    c.status(403);
+    return c.json({ error: "Unauthorized" });
+  }
+
   const token = header.split(" ")[1];
   const response = await verify(token, c.env.JWT_SECRET);
 
   if (response.id) {
+    c.set("userId", response.id);
     await next();
   } else {
     c.status(403);
@@ -32,12 +39,7 @@ app.use("/api/v1/blog/*", async (c, next) => {
   }
 });
 
-app.get("/api/v1/blog/:id", (c) => {
-  const id = c.req.param("id");
-  console.log(id);
-  return c.text("get blog route");
-});
-
+//signup
 app.post("/api/v1/signup", async (c) => {
   const prisma = new PrismaClient({
     datasourceUrl: c.env?.DATABASE_URL,
@@ -60,6 +62,7 @@ app.post("/api/v1/signup", async (c) => {
   }
 });
 
+//signin
 app.post("/api/v1/signin", async (c) => {
   const prisma = new PrismaClient({
     datasourceUrl: c.env?.DATABASE_URL,
@@ -78,12 +81,64 @@ app.post("/api/v1/signin", async (c) => {
   return c.json({ jwt });
 });
 
-app.post("/api/v1/blog", (c) => {
-  return c.text("blog post route");
+//post the blog
+app.post("/api/v1/blog", async (c) => {
+  const userId = c.get("userId");
+
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const body = await c.req.json();
+  const post = await prisma.post.create({
+    data: {
+      title: body.title,
+      content: body.content,
+      authorId: userId,
+    },
+  });
+
+  return c.json({
+    id: post.id,
+  });
 });
 
-app.put("/api/v1/blog", (c) => {
-  return c.text("blog put route");
+//update the blog
+app.put("/api/v1/blog", async (c) => {
+  const userId = c.get("userId");
+
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const body = await c.req.json();
+  prisma.post.update({
+    where: {
+      id: body.id,
+      authorId: userId,
+    },
+    data: {
+      title: body.title,
+      content: body.content,
+    },
+  });
+  return c.text("updated post");
+});
+
+//get blog
+app.get("/api/v1/blog/:id", async (c) => {
+  const id = c.req.param("id");
+
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env?.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  const post = await prisma.post.findUnique({
+    where: {
+      id,
+    },
+  });
+  return c.json({ post });
 });
 
 export default app;
