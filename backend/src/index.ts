@@ -56,7 +56,7 @@ app.post("/api/v1/signup", async (c) => {
     return c.json({ token });
   } catch (error) {
     c.status(404);
-    return c.json({ error: "error in signup" });
+    return c.json({ Error: "Error in Signup" });
   }
 });
 
@@ -72,7 +72,7 @@ app.post("/api/v1/signin", async (c) => {
 
   if (!user) {
     c.status(303);
-    return c.json({ error: "user not found" });
+    return c.json({ Error: "User not found" });
   }
   const jwt = await sign({ id: body.id }, c.env.JWT_SECRET);
   return c.json({ jwt });
